@@ -19,7 +19,7 @@
 
 from io import BytesIO
 import os
-import ssl
+import socket
 import sys
 import warnings
 import base64
@@ -34,20 +34,17 @@ import six
 class THttpClient(TTransportBase):
     """Http implementation of TTransport base."""
 
-    def __init__(self, uri_or_host, port=None, path=None, cafile=None, cert_file=None, key_file=None, ssl_context=None):
-        """THttpClient supports two different types of construction:
+    def __init__(self, uri_or_host, port=None, path=None):
+        """THttpClient supports two different types constructor parameters.
 
         THttpClient(host, port, path) - deprecated
-        THttpClient(uri, [port=<n>, path=<s>, cafile=<filename>, cert_file=<filename>, key_file=<filename>, ssl_context=<context>])
+        THttpClient(uri)
 
-        Only the second supports https.  To properly authenticate against the server,
-        provide the client's identity by specifying cert_file and key_file.  To properly
-        authenticate the server, specify either cafile or ssl_context with a CA defined.
-        NOTE: if both cafile and ssl_context are defined, ssl_context will override cafile.
+        Only the second supports https.
         """
         if port is not None:
             warnings.warn(
-                "Please use the THttpClient('http{s}://host:port/path') constructor",
+                "Please use the THttpClient('http://host:port/path') syntax",
                 DeprecationWarning,
                 stacklevel=2)
             self.host = uri_or_host
@@ -63,9 +60,6 @@ class THttpClient(TTransportBase):
                 self.port = parsed.port or http_client.HTTP_PORT
             elif self.scheme == 'https':
                 self.port = parsed.port or http_client.HTTPS_PORT
-                self.certfile = cert_file
-                self.keyfile = key_file
-                self.context = ssl.create_default_context(cafile=cafile) if (cafile and not ssl_context) else ssl_context
             self.host = parsed.hostname
             self.path = parsed.path
             if parsed.query:
@@ -106,17 +100,12 @@ class THttpClient(TTransportBase):
 
     def open(self):
         if self.scheme == 'http':
-            self.__http = http_client.HTTPConnection(self.host, self.port,
-                                                     timeout=self.__timeout)
+            self.__http = http_client.HTTPConnection(self.host, self.port)
         elif self.scheme == 'https':
-            self.__http = http_client.HTTPSConnection(self.host, self.port,
-                                                      key_file=self.keyfile,
-                                                      cert_file=self.certfile,
-                                                      timeout=self.__timeout,
-                                                      context=self.context)
-        if self.using_proxy():
-            self.__http.set_tunnel(self.realhost, self.realport,
-                                   {"Proxy-Authorization": self.proxy_auth})
+            self.__http = http_client.HTTPSConnection(self.host, self.port)
+            if self.using_proxy():
+                self.__http.set_tunnel(self.realhost, self.realport,
+                                       {"Proxy-Authorization": self.proxy_auth})
 
     def close(self):
         self.__http.close()
@@ -127,6 +116,9 @@ class THttpClient(TTransportBase):
         return self.__http is not None
 
     def setTimeout(self, ms):
+        if not hasattr(socket, 'getdefaulttimeout'):
+            raise NotImplementedError
+
         if ms is None:
             self.__timeout = None
         else:
@@ -140,6 +132,17 @@ class THttpClient(TTransportBase):
 
     def write(self, buf):
         self.__wbuf.write(buf)
+
+    def __withTimeout(f):
+        def _f(*args, **kwargs):
+            orig_timeout = socket.getdefaulttimeout()
+            socket.setdefaulttimeout(args[0].__timeout)
+            try:
+                result = f(*args, **kwargs)
+            finally:
+                socket.setdefaulttimeout(orig_timeout)
+            return result
+        return _f
 
     def flush(self):
         if self.isOpen():
@@ -185,3 +188,7 @@ class THttpClient(TTransportBase):
         self.code = self.__http_response.status
         self.message = self.__http_response.reason
         self.headers = self.__http_response.msg
+
+    # Decorate if we know how to timeout
+    if hasattr(socket, 'getdefaulttimeout'):
+        flush = __withTimeout(flush)

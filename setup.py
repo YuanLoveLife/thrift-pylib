@@ -31,10 +31,7 @@ from distutils.errors import CCompilerError, DistutilsExecError, DistutilsPlatfo
 # Fix to build sdist under vagrant
 import os
 if 'vagrant' in str(os.environ):
-    try:
-        del os.link
-    except AttributeError:
-        pass
+    del os.link
 
 include_dirs = ['src']
 if sys.platform == 'win32':
@@ -66,7 +63,7 @@ def run_setup(with_binary):
     if with_binary:
         extensions = dict(
             ext_modules=[
-                Extension('thrift_pylib.protocol.fastbinary',
+                Extension('thrift.protocol.fastbinary',
                           sources=[
                               'src/ext/module.cpp',
                               'src/ext/types.cpp',
@@ -89,8 +86,8 @@ def run_setup(with_binary):
     tornado_deps = ['tornado>=4.0']
     twisted_deps = ['twisted']
 
-    setup(name='thrift_pylib',
-          version='1.0.0-dev',
+    setup(name='thrift',
+          version='0.11.0',
           description='Python bindings for the Apache Thrift RPC system',
           author='Thrift Developers',
           author_email='dev@thrift.apache.org',
@@ -104,12 +101,12 @@ def run_setup(with_binary):
               'all': ssl_deps + tornado_deps + twisted_deps,
           },
           packages=[
-              'thrift_pylib',
-              'thrift_pylib.protocol',
-              'thrift_pylib.transport',
-              'thrift_pylib.server',
+              'thrift',
+              'thrift.protocol',
+              'thrift.transport',
+              'thrift.server',
           ],
-          package_dir={'thrift_pylib': 'src'},
+          package_dir={'thrift': 'src'},
           classifiers=[
               'Development Status :: 5 - Production/Stable',
               'Environment :: Console',
