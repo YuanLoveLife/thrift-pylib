@@ -63,7 +63,7 @@ def run_setup(with_binary):
     if with_binary:
         extensions = dict(
             ext_modules=[
-                Extension('thrift.protocol.fastbinary',
+                Extension('thrift_pylib.protocol.fastbinary',
                           sources=[
                               'src/ext/module.cpp',
                               'src/ext/types.cpp',
@@ -86,7 +86,7 @@ def run_setup(with_binary):
     tornado_deps = ['tornado>=4.0']
     twisted_deps = ['twisted']
 
-    setup(name='thrift',
+    setup(name='thrift_pylib',
           version='0.11.0',
           description='Python bindings for the Apache Thrift RPC system',
           author='Thrift Developers',
@@ -101,12 +101,12 @@ def run_setup(with_binary):
               'all': ssl_deps + tornado_deps + twisted_deps,
           },
           packages=[
-              'thrift',
-              'thrift.protocol',
-              'thrift.transport',
-              'thrift.server',
+              'thrift_pylib',
+              'thrift_pylib.protocol',
+              'thrift_pylib.transport',
+              'thrift_pylib.server',
           ],
-          package_dir={'thrift': 'src'},
+          package_dir={'thrift_pylib': 'src'},
           classifiers=[
               'Development Status :: 5 - Production/Stable',
               'Environment :: Console',
